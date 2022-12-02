@@ -18,6 +18,7 @@ Switch to **"img2img"** tab, under the **"script"** column, select **"enhanced i
  - **Use input image's alpha channel as mask**: if your original images are PNG files with transparent backgrounds, you can use this option to create outputs with transparent backgrounds. 
    *Note: when this option is selected, the masks in the "**mask directory**" will not be used.*
  - **Use another image as mask**: use masks in the "**mask directory**" to inpaint images.
+   *Note: if the relevant masks are blank images or no mask is provided, the original images will not be processed.*
  - **Use mask as output alpha channel**: as it says.
    *Note: when the "**use input image's alpha channel as mask**" option is selected, this option is automatically activated.*
   - **Zoom in masked area**: crop and resize the masked area to square images; this will give better results when the masked area is relatively small compared to the original images.
