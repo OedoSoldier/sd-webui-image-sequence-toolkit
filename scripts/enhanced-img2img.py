@@ -5,8 +5,6 @@ import math
 import os
 import sys
 import traceback
-import cv2
-import numpy as np
 import copy
 import pandas as pd
 
@@ -14,7 +12,7 @@ import modules.scripts as scripts
 import gradio as gr
 
 from modules.processing import Processed, process_images, create_infotext
-from PIL import Image, ImageOps, ImageChops, ImageFilter, PngImagePlugin
+from PIL import Image, ImageFilter, PngImagePlugin
 from modules.shared import opts, cmd_opts, state
 from modules.script_callbacks import ImageSaveParams, before_image_saved_callback
 from modules.sd_hijack import model_hijack
