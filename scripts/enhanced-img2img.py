@@ -276,23 +276,26 @@ class Script(scripts.Script):
                         to_process = re.findall(re_findidx, path)[0]
                     except BaseException:
                         to_process = re.findall(re_findname, path)[0]
-                    if to_process in masks:
+                    try:
                         mask = Image.open(
                             masks_in_folder_dict[to_process]).convert('L').point(
                             lambda x: 255 if x > 0 else 0, mode='1')
-                        img_alpha = img.split()[-1].copy().convert('L')
-                        if rotate_img != '0':
-                            mask = mask.transpose(
-                                rotation_dict[rotate_img])
-                        if is_crop:
-                            cropped, mask, crop_info = util.crop_img(
-                                img.copy(), mask)
-                            if not mask:
-                                continue
-                            batched_raw.append(img.copy())
-                    else:
-                        raise FileNotFoundError(
-                            f'Mask of {os.path.basename(path)} not found')
+                    except:
+                        print(f'Mask of {os.path.basename(path)} is not found, output original image!')
+                        img.save(os.path.join(output_dir, os.path.basename(path)))
+                        continue
+                    img_alpha = img.split()[-1].copy().convert('L')
+                    if rotate_img != '0':
+                        mask = mask.transpose(
+                            rotation_dict[rotate_img])
+                    if is_crop:
+                        cropped, mask, crop_info = util.crop_img(
+                            img.copy(), mask)
+                        if not mask:
+                            print(f'Mask of {os.path.basename(path)} is blank, output original image!')
+                            img.save(os.path.join(output_dir, os.path.basename(path)))
+                            continue
+                        batched_raw.append(img.copy())
                 img = cropped if cropped is not None else img
                 batch_images.append((img, path))
 
@@ -301,7 +304,8 @@ class Script(scripts.Script):
                 print(traceback.format_exc(), file=sys.stderr)
 
             if len(batch_images) == 0:
-                continue
+                print('No images will be processed.')
+                break
 
             if process_deepbooru:
                 deepbooru_prompt = deepbooru.model.tag_multi(
@@ -319,6 +323,8 @@ class Script(scripts.Script):
                     p.prompt = init_prompt + deepbooru_prompt
 
             if use_csv:
+                if len(init_prompt) > 0:
+                    init_prompt += ', '
                 p.prompt = init_prompt + prompt_list[frame]
 
             state.job = f'{idx} out of {img_len}: {batch_images[0][1]}'
@@ -380,7 +386,7 @@ class Script(scripts.Script):
                     filename)
 
                 if is_rerun:
-                    params.pnginfo['rerun_params'] = f'First run size: {rerun_width}x{rerun_height}, First run strength: {original_strength}'
+                    params.pnginfo['loopback_params'] = f'First pass size: {rerun_width}x{rerun_height}, First pass strength: {original_strength}'
 
                 info = params.pnginfo.get('parameters', None)
 
