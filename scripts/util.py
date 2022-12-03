@@ -2,6 +2,7 @@
 # https://space.bilibili.com/55123
 
 from PIL import Image, ImageOps, ImageFilter
+import numpy as np
 
 
 class CropUtils(object):
@@ -17,9 +18,6 @@ class CropUtils(object):
         info = bbox
         img = img.crop(bbox)
         mask = mask.crop(bbox)
-        a = mask.split()[0].convert('L').point(
-            lambda x: 255 if x > threshold else 0)
-        mask = Image.merge('RGBA', (a, a, a, a.convert('L')))
         image_size = img.size
         info += image_size
         width = image_size[0]

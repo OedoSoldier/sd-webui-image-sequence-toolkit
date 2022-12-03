@@ -63,6 +63,14 @@ class Script(scripts.Script):
                 label='Zoom in masked area')
 
         with gr.Row():
+            alpha_threshold = gr.Slider(
+                minimum=0,
+                maximum=255,
+                step=1,
+                label='Alpha threshold',
+                value=50)
+
+        with gr.Row():
             rotate_img = gr.Radio(
                 label='Rotate images (clockwise)', choices=[
                     '0', '-90', '180', '90'], value='0')
@@ -115,6 +123,7 @@ class Script(scripts.Script):
             use_img_mask,
             as_output_alpha,
             is_crop,
+            alpha_threshold,
             rotate_img,
             given_file,
             specified_filename,
@@ -137,6 +146,7 @@ class Script(scripts.Script):
             use_img_mask,
             as_output_alpha,
             is_crop,
+            alpha_threshold,
             rotate_img,
             given_file,
             specified_filename,
@@ -277,9 +287,10 @@ class Script(scripts.Script):
                     except BaseException:
                         to_process = re.findall(re_findname, path)[0]
                     try:
-                        mask = Image.open(
-                            masks_in_folder_dict[to_process]).convert('L').point(
-                            lambda x: 255 if x > 0 else 0, mode='1')
+                        mask = Image.open(masks_in_folder_dict[to_process])
+                        a = mask.split()[-1].convert('L').point(
+                            lambda x: 255 if x > alpha_threshold else 0)
+                        mask = Image.merge('RGBA', (a, a, a, a.convert('L')))
                     except BaseException:
                         print(
                             f'Mask of {os.path.basename(path)} is not found, output original image!')
@@ -288,13 +299,12 @@ class Script(scripts.Script):
                                 output_dir,
                                 os.path.basename(path)))
                         continue
-                    img_alpha = img.split()[-1].copy().convert('L')
                     if rotate_img != '0':
                         mask = mask.transpose(
                             rotation_dict[rotate_img])
                     if is_crop:
                         cropped, mask, crop_info = util.crop_img(
-                            img.copy(), mask)
+                            img.copy(), mask, alpha_threshold)
                         if not mask:
                             print(
                                 f'Mask of {os.path.basename(path)} is blank, output original image!')
@@ -357,7 +367,6 @@ class Script(scripts.Script):
             for output, (input_img, path) in zip(proc.images, batch_images):
                 filename = os.path.basename(path)
                 if use_img_mask:
-                    output.putalpha(img_alpha.resize(output.size))
                     if as_output_alpha:
                         output.putalpha(
                             p.image_mask.resize(
