@@ -280,9 +280,13 @@ class Script(scripts.Script):
                         mask = Image.open(
                             masks_in_folder_dict[to_process]).convert('L').point(
                             lambda x: 255 if x > 0 else 0, mode='1')
-                    except:
-                        print(f'Mask of {os.path.basename(path)} is not found, output original image!')
-                        img.save(os.path.join(output_dir, os.path.basename(path)))
+                    except BaseException:
+                        print(
+                            f'Mask of {os.path.basename(path)} is not found, output original image!')
+                        img.save(
+                            os.path.join(
+                                output_dir,
+                                os.path.basename(path)))
                         continue
                     img_alpha = img.split()[-1].copy().convert('L')
                     if rotate_img != '0':
@@ -292,8 +296,12 @@ class Script(scripts.Script):
                         cropped, mask, crop_info = util.crop_img(
                             img.copy(), mask)
                         if not mask:
-                            print(f'Mask of {os.path.basename(path)} is blank, output original image!')
-                            img.save(os.path.join(output_dir, os.path.basename(path)))
+                            print(
+                                f'Mask of {os.path.basename(path)} is blank, output original image!')
+                            img.save(
+                                os.path.join(
+                                    output_dir,
+                                    os.path.basename(path)))
                             continue
                         batched_raw.append(img.copy())
                 img = cropped if cropped is not None else img
