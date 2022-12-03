@@ -2,7 +2,6 @@
 # https://space.bilibili.com/55123
 
 from PIL import Image, ImageOps, ImageFilter
-import numpy as np
 
 
 class CropUtils(object):
