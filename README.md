@@ -30,7 +30,7 @@ Switch to **"img2img"** tab, under the **"script"** column, select **"enhanced i
   - **Use csv prompt list** and **input file path**: use a `.csv` file as prompts for each image, one line for one image.
   - **Loopback**: similar to the loopback script, this will run input images img2img twice to enhance AI's creativity. 
   - **Firstpass width** and **firstpass height**: AI tends to be more creative when the firstpass size is smaller.
-  - **Denoising strength**: denoising strength for the first pass, better be not higher than 0.4.
+  - **Denoising strength**: denoising strength for the first pass, better be no higher than 0.4.
 
 ## Credit
 
