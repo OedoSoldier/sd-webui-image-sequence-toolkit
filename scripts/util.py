@@ -1,7 +1,7 @@
 # Author: OedoSoldier [大江户战士]
 # https://space.bilibili.com/55123
 
-from PIL import Image, ImageOps, ImageFilter
+from PIL import Image, ImageFilter
 import numpy as np
 
 
