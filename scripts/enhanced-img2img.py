@@ -23,7 +23,7 @@ import importlib.util
 import re
 
 re_findidx = re.compile(
-    r'\S(\d+)\.(?:[P|p][N|n][G|g]?|[J|j][P|p][G|g]?|[J|j][P|p][E|e][G|g]?|[W|w][E|e][B|b][P|p]?)\b')
+    r'(?=\S)(\d+)\.(?:[P|p][N|n][G|g]?|[J|j][P|p][G|g]?|[J|j][P|p][E|e][G|g]?|[W|w][E|e][B|b][P|p]?)\b')
 re_findname = re.compile(r'[\w-]+?(?=\.)')
 
 
