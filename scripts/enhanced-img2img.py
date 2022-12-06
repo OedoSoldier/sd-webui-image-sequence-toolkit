@@ -13,7 +13,7 @@ import gradio as gr
 
 from modules.processing import Processed, process_images, create_infotext
 from PIL import Image, ImageFilter, PngImagePlugin
-from modules.shared import opts, cmd_opts, state, total_tqdm
+from modules.shared import opts, cmd_opts, state
 from modules.script_callbacks import ImageSaveParams, before_image_saved_callback
 from modules.sd_hijack import model_hijack
 if cmd_opts.deepdanbooru:
@@ -263,7 +263,7 @@ class Script(scripts.Script):
         if use_depthmap:
             sdmg = module_from_file(
                 'depthmap',
-                'extensions/enhanced-img2img/scripts/depthmap_for_depth2img.py')
+                'extensions/enhanced-img2img/scripts/depthmap.py')
 
             img_x = p.width if match_size else net_width
             img_y = p.height if match_size else net_height
