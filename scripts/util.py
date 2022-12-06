@@ -102,7 +102,7 @@ class CropUtils(object):
         """
 
         # Code for restoring the cropped image
-        
+
         raw_size = raw.size
         ref_size = ref_img.size
 

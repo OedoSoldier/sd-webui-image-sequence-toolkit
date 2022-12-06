@@ -496,10 +496,12 @@ class Script(scripts.Script):
                 return process_images(p)
 
             if is_rerun:
-                proc = process_images_with_size(p, (rerun_width, rerun_height), rerun_strength)
+                proc = process_images_with_size(
+                    p, (rerun_width, rerun_height), rerun_strength)
                 p_2 = p
                 p_2.init_images = proc.images
-                proc = process_images_with_size(p_2, original_size, original_strength)
+                proc = process_images_with_size(
+                    p_2, original_size, original_strength)
             else:
                 proc = process_images(p)
 

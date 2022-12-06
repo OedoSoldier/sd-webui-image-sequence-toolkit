@@ -136,7 +136,6 @@ class SimpleDepthMapGenerator(object):
                 self.model = self.model.half()
         self.model.to(self.device)
 
-
     def calculate_depth_maps(self, image):
         img = cv2.cvtColor(np.asarray(image), cv2.COLOR_BGR2RGB) / 255.0
         img_input = self.transform({"image": img})["image"]
