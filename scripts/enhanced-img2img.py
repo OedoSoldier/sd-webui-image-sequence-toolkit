@@ -33,6 +33,21 @@ def module_from_file(module_name, file_path):
     spec.loader.exec_module(module)
     return module
 
+def gr_show(visible=True):
+    return {"visible": visible, "__type__": "update"}
+
+def gr_show_value_none(visible=True):
+    return {"value": None, "visible": visible, "__type__": "update"}
+
+def gr_show_and_load(value=None, visible=True):
+    if value:
+        if value.orig_name.endswith('.csv'):
+            value = pd.read_csv(value.name)
+        else:
+            value = pd.read_excel(value.name)
+    else:
+        visible = False
+    return {"value": value, "visible": visible, "__type__": "update"}
 
 class Script(scripts.Script):
     def title(self):
@@ -48,17 +63,21 @@ class Script(scripts.Script):
         if not is_img2img:
             return None
 
-        input_dir = gr.Textbox(label='Input directory', lines=1)
-        output_dir = gr.Textbox(label='Output directory', lines=1)
-        mask_dir = gr.Textbox(label='Mask directory', lines=1)
         with gr.Row():
+            input_dir = gr.Textbox(label='Input directory', lines=1)
             use_mask = gr.Checkbox(
                 label='Use input image\'s alpha channel as mask')
-            use_img_mask = gr.Checkbox(label='Use another image as mask')
+
+        output_dir = gr.Textbox(label='Output directory', lines=1)
+
+        with gr.Row(visible=False) as mask_options:
+            mask_dir = gr.Textbox(label='Mask directory', lines=1)
             as_output_alpha = gr.Checkbox(
                 label='Use mask as output alpha channel')
-            is_crop = gr.Checkbox(
-                label='Zoom in masked area')
+
+        with gr.Row():
+            use_img_mask = gr.Checkbox(label='Use another image as mask')
+            is_crop = gr.Checkbox(label='Zoom in masked area')
 
         with gr.Row():
             alpha_threshold = gr.Slider(
@@ -76,7 +95,7 @@ class Script(scripts.Script):
         with gr.Row():
             given_file = gr.Checkbox(
                 label='Process given file(s) under the input folder, seperate by comma')
-            specified_filename = gr.Textbox(label='Files to process', lines=1)
+            specified_filename = gr.Textbox(label='Files to process', lines=1, visible=False)
 
         with gr.Row():
             process_deepbooru = gr.Checkbox(
@@ -84,16 +103,16 @@ class Script(scripts.Script):
                 visible=cmd_opts.deepdanbooru)
             deepbooru_prev = gr.Checkbox(
                 label='Using contextual information',
-                visible=cmd_opts.deepdanbooru)
+                visible=False)
 
         with gr.Row():
-            use_csv = gr.Checkbox(label='Use csv prompt list')
-            csv_path = gr.Textbox(label='Input file path', lines=1)
+            use_csv = gr.Checkbox(label='Read tabular commands')
+            csv_path = gr.File(file_types=['file'], label='Tabular file (.xlsx or .csv)', visible=False) # gr.Textbox(label='Input file path', lines=1, visible=False)
 
         with gr.Row():
             is_rerun = gr.Checkbox(label='Loopback')
 
-        with gr.Row():
+        with gr.Row(visible=False) as rerun_options:
             rerun_width = gr.Slider(
                 minimum=64.0,
                 maximum=2048.0,
@@ -113,6 +132,40 @@ class Script(scripts.Script):
                 label='Denoising strength',
                 value=0.2)
 
+        with gr.Row():
+            table_content = gr.Dataframe(visible=False)
+
+        use_img_mask.change(
+            fn=lambda x: gr_show(x),
+            inputs=[use_img_mask],
+            outputs=[mask_options],
+        )
+        given_file.change(
+            fn=lambda x: gr_show(x),
+            inputs=[given_file],
+            outputs=[specified_filename],
+        )
+        process_deepbooru.change(
+            fn=lambda x: gr_show(x),
+            inputs=[process_deepbooru],
+            outputs=[deepbooru_prev],
+        )
+        use_csv.change(
+            fn=lambda x: [gr_show_value_none(x), gr_show_value_none(False)],
+            inputs=[use_csv],
+            outputs=[csv_path, table_content],
+        )
+        csv_path.change(
+            fn=lambda x: gr_show_and_load(x),
+            inputs=[csv_path],
+            outputs=[table_content],
+        )
+        is_rerun.change(
+            fn=lambda x: gr_show(x),
+            inputs=[is_rerun],
+            outputs=[rerun_options],
+        )
+
         return [
             input_dir,
             output_dir,
@@ -128,7 +181,7 @@ class Script(scripts.Script):
             process_deepbooru,
             deepbooru_prev,
             use_csv,
-            csv_path,
+            table_content,
             is_rerun,
             rerun_width,
             rerun_height,
@@ -151,7 +204,7 @@ class Script(scripts.Script):
             process_deepbooru,
             deepbooru_prev,
             use_csv,
-            csv_path,
+            table_content,
             is_rerun,
             rerun_width,
             rerun_height,
@@ -180,9 +233,7 @@ class Script(scripts.Script):
 
         if use_csv:
             prompt_list = [
-                i[0] for i in pd.read_csv(
-                    csv_path,
-                    header=None).values.tolist()]
+                i[0] for i in table_content.values.tolist()]
         init_prompt = p.prompt
 
         initial_info = None
