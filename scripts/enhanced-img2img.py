@@ -113,51 +113,6 @@ class Script(scripts.Script):
                 label='Denoising strength',
                 value=0.2)
 
-        with gr.Accordion('Depthmap settings', open=False):
-            '''
-            Borrowed from https://github.com/Extraltodeus/depthmap2mask
-            Author: Extraltodeus
-            '''
-            use_depthmap = gr.Checkbox(
-                label='Use depthmap model to create mask')
-            treshold = gr.Slider(
-                minimum=0,
-                maximum=255,
-                step=1,
-                label='Contrasts cut level',
-                value=0)
-            match_size = gr.Checkbox(label='Match input size', value=True)
-            net_width = gr.Slider(
-                minimum=64,
-                maximum=2048,
-                step=64,
-                label='Net width',
-                value=384)
-            net_height = gr.Slider(
-                minimum=64,
-                maximum=2048,
-                step=64,
-                label='Net height',
-                value=384)
-            with gr.Row():
-                invert_depth = gr.Checkbox(
-                    label='Invert DepthMap', value=False)
-                override_mask_blur = gr.Checkbox(
-                    label='Override mask blur to 0', value=True)
-                override_fill = gr.Checkbox(
-                    label='Override inpaint to original', value=True)
-                clean_cut = gr.Checkbox(
-                    label='Turn the depthmap into absolute black/white', value=False)
-            model_type = gr.Dropdown(
-                label='Model',
-                choices=[
-                    'dpt_large',
-                    'midas_v21',
-                    'midas_v21_small'],
-                value='midas_v21_small',
-                type='index',
-                elem_id='model_type')
-
         return [
             input_dir,
             output_dir,
@@ -177,17 +132,7 @@ class Script(scripts.Script):
             is_rerun,
             rerun_width,
             rerun_height,
-            rerun_strength,
-            use_depthmap,
-            treshold,
-            match_size,
-            net_width,
-            net_height,
-            invert_depth,
-            model_type,
-            override_mask_blur,
-            override_fill,
-            clean_cut]
+            rerun_strength]
 
     def run(
             self,
@@ -210,66 +155,11 @@ class Script(scripts.Script):
             is_rerun,
             rerun_width,
             rerun_height,
-            rerun_strength,
-            use_depthmap,
-            treshold,
-            match_size,
-            net_width,
-            net_height,
-            invert_depth,
-            model_type,
-            override_mask_blur,
-            override_fill,
-            clean_cut):
+            rerun_strength):
 
-        def remap_range(value, minIn, MaxIn, minOut, maxOut):
-            if value > MaxIn:
-                value = MaxIn
-            if value < minIn:
-                value = minIn
-            finalValue = ((value - minIn) / (MaxIn - minIn)) * \
-                (maxOut - minOut) + minOut
-            return finalValue
-
-        def create_depth_mask_from_depth_map(
-                img, p, treshold, clean_cut):
-            img = copy.deepcopy(img.convert('RGBA'))
-            mask_img = copy.deepcopy(img.convert('L'))
-            mask_datas = mask_img.getdata()
-            datas = img.getdata()
-            newData = []
-            maxD = max(mask_datas)
-            if clean_cut and treshold == 0:
-                treshold = 128
-            for i in range(len(mask_datas)):
-                if clean_cut and mask_datas[i] > treshold:
-                    newrgb = 255
-                elif mask_datas[i] > treshold and not clean_cut:
-                    newrgb = int(
-                        remap_range(
-                            mask_datas[i],
-                            treshold,
-                            255,
-                            0,
-                            255))
-                else:
-                    newrgb = 0
-                newData.append((newrgb, newrgb, newrgb, 255))
-            img.putdata(newData)
-            return img
 
         util = module_from_file(
             'util', 'extensions/enhanced-img2img/scripts/util.py').CropUtils()
-        if use_depthmap:
-            sdmg = module_from_file(
-                'depthmap',
-                'extensions/enhanced-img2img/scripts/depthmap.py')
-
-            img_x = p.width if match_size else net_width
-            img_y = p.height if match_size else net_height
-
-            sdmg = sdmg.SimpleDepthMapGenerator(
-                model_type, img_x, img_y, invert_depth)
 
         rotation_dict = {
             '-90': Image.Transpose.ROTATE_90,
@@ -396,7 +286,7 @@ class Script(scripts.Script):
                 img = Image.open(path)
                 if rotate_img != '0':
                     img = img.transpose(rotation_dict[rotate_img])
-                if use_img_mask and not use_depthmap:
+                if use_img_mask:
                     try:
                         to_process = re.findall(re_findidx, path)[0]
                     except BaseException:
@@ -420,25 +310,6 @@ class Script(scripts.Script):
                     if is_crop:
                         cropped, mask, crop_info = util.crop_img(
                             img.copy(), mask, alpha_threshold)
-                        if not mask:
-                            print(
-                                f'Mask of {os.path.basename(path)} is blank, output original image!')
-                            img.save(
-                                os.path.join(
-                                    output_dir,
-                                    os.path.basename(path)))
-                            continue
-                        batched_raw.append(img.copy())
-                elif use_depthmap:
-                    mask = sdmg.calculate_depth_maps(img)
-
-                    if treshold > 0 or clean_cut:
-                        mask = create_depth_mask_from_depth_map(
-                            mask, p, treshold, clean_cut)
-
-                    if is_crop:
-                        cropped, mask, crop_info = util.crop_img(
-                            img.copy(), mask, treshold)
                         if not mask:
                             print(
                                 f'Mask of {os.path.basename(path)} is blank, output original image!')
@@ -482,12 +353,7 @@ class Script(scripts.Script):
             state.job = f'{idx} out of {img_len}: {batch_images[0][1]}'
             p.init_images = [x[0] for x in batch_images]
 
-            if override_mask_blur and use_depthmap:
-                p.mask_blur = 0
-            if override_fill and use_depthmap:
-                p.inpainting_fill = 1
-
-            if mask is not None and (use_mask or use_img_mask or use_depthmap):
+            if mask is not None and (use_mask or use_img_mask):
                 p.image_mask = mask
 
             def process_images_with_size(p, size, strength):
