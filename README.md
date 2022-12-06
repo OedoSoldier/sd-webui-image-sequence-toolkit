@@ -29,7 +29,9 @@ Switch to **"img2img"** tab, under the **"script"** column, select **"enhanced i
   - **Loopback**: similar to the loopback script, this will run input images img2img twice to enhance AI's creativity. 
   - **Firstpass width** and **firstpass height**: AI tends to be more creative when the firstpass size is smaller.
   - **Denoising strength**: denoising strength for the first pass, better be no higher than 0.4.
+  - **Depthmap settings**: see [depthmap2mask]([https://github.com/AUTOMATIC1111/stable-diffusion-webui](https://github.com/Extraltodeus/depthmap2mask))
 
 ## Credit
 
 AUTOMATIC1111's WebUI - https://github.com/AUTOMATIC1111/stable-diffusion-webui
+Extraltodeus's depthmap2mask - https://github.com/Extraltodeus/depthmap2mask
