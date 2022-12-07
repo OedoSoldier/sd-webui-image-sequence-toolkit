@@ -106,10 +106,6 @@ class Script(scripts.Script):
                 visible=False)
 
         with gr.Row():
-            use_csv = gr.Checkbox(label='Read tabular commands')
-            csv_path = gr.File(file_types=['file'], label='Tabular file (.xlsx or .csv)', visible=False) # gr.Textbox(label='Input file path', lines=1, visible=False)
-
-        with gr.Row():
             is_rerun = gr.Checkbox(label='Loopback')
 
         with gr.Row(visible=False) as rerun_options:
@@ -133,7 +129,12 @@ class Script(scripts.Script):
                 value=0.2)
 
         with gr.Row():
-            table_content = gr.Dataframe(visible=False)
+            use_csv = gr.Checkbox(label='Read tabular commands')
+            csv_path = gr.File(label='.csv or .xlsx', file_types=['file'], visible=False)
+
+        with gr.Row():
+            with gr.Column():
+                table_content = gr.Dataframe(visible=False, wrap=True)
 
         use_img_mask.change(
             fn=lambda x: gr_show(x),
@@ -211,7 +212,7 @@ class Script(scripts.Script):
             rerun_strength):
 
 
-        util = module_from_file(
+        crop_util = module_from_file(
             'util', 'extensions/enhanced-img2img/scripts/util.py').CropUtils()
 
         rotation_dict = {
@@ -359,7 +360,7 @@ class Script(scripts.Script):
                         mask = mask.transpose(
                             rotation_dict[rotate_img])
                     if is_crop:
-                        cropped, mask, crop_info = util.crop_img(
+                        cropped, mask, crop_info = crop_util.crop_img(
                             img.copy(), mask, alpha_threshold)
                         if not mask:
                             print(
@@ -437,7 +438,7 @@ class Script(scripts.Script):
                         rotation_dict[str(-int(rotate_img))])
 
                 if is_crop:
-                    output = util.restore_by_file(
+                    output = crop_util.restore_by_file(
                         batched_raw[0],
                         output,
                         batch_images[0][0],
