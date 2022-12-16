@@ -239,38 +239,45 @@ class Script(scripts.Script):
 
         initial_info = None
         if given_file:
-            images = []
-            images_in_folder = [
-                file for file in [
-                    os.path.join(
-                        input_dir,
-                        x) for x in os.listdir(input_dir)] if os.path.isfile(file)]
-            try:
-                images_idx = [int(re.findall(re_findidx, j)[0])
-                              for j in images_in_folder]
-            except BaseException:
-                images_idx = [re.findall(re_findname, j)[0]
-                              for j in images_in_folder]
-            images_in_folder_dict = dict(zip(images_idx, images_in_folder))
-            sep = ',' if ',' in specified_filename else ' '
-            for i in specified_filename.split(','):
-                if i in images_in_folder:
-                    images.append(i)
-                else:
-                    try:
-                        match = re.search(r'(^\d*)-(\d*$)', i)
-                        if match:
-                            start, end = match.groups()
-                            if start == '':
-                                start = images_idx[0]
-                            if end == '':
-                                end = images_idx[-1]
-                            images += [images_in_folder_dict[j]
-                                       for j in list(range(int(start), int(end) + 1))]
-                    except BaseException:
-                        images.append(images_in_folder_dict[int(i)])
-            if len(images) == 0:
-                raise FileNotFoundError
+            if specified_filename == '':
+                images = [
+                    file for file in [
+                        os.path.join(
+                            input_dir,
+                            x) for x in os.listdir(input_dir)] if os.path.isfile(file)]
+            else:
+                images = []
+                images_in_folder = [
+                    file for file in [
+                        os.path.join(
+                            input_dir,
+                            x) for x in os.listdir(input_dir)] if os.path.isfile(file)]
+                try:
+                    images_idx = [int(re.findall(re_findidx, j)[0])
+                                  for j in images_in_folder]
+                except BaseException:
+                    images_idx = [re.findall(re_findname, j)[0]
+                                  for j in images_in_folder]
+                images_in_folder_dict = dict(zip(images_idx, images_in_folder))
+                sep = ',' if ',' in specified_filename else ' '
+                for i in specified_filename.split(','):
+                    if i in images_in_folder:
+                        images.append(i)
+                    else:
+                        try:
+                            match = re.search(r'(^\d*)-(\d*$)', i)
+                            if match:
+                                start, end = match.groups()
+                                if start == '':
+                                    start = images_idx[0]
+                                if end == '':
+                                    end = images_idx[-1]
+                                images += [images_in_folder_dict[j]
+                                           for j in list(range(int(start), int(end) + 1))]
+                        except BaseException:
+                            images.append(images_in_folder_dict[int(i)])
+                if len(images) == 0:
+                    raise FileNotFoundError
 
         else:
             images = [
