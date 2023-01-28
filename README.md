@@ -23,8 +23,8 @@ Switch to **"img2img"** tab, under the **"script"** column, select **"enhanced i
   - **Rotate images (clockwise)**: as it says, this can improve AI's performance when the original images are upside down.
   - **Process given file(s) under the input folder, separate by comma**: process certain image(s) from the text box right to it; if this option is not checked, all the images under the folder will be processed.
   - **Files to process**: filenames of images you want to process. I recommend naming your images with a digit suffixes, e.g. `000233.png, 000234.png, 000235.png, ...` or `image_233.jpg, image_234.jpg, image_235.jpg, ...`. In this way, you can use `233,234,235` or simply `233-235` to assign these files. Otherwise, you need to give the full filenames like `image_a.webp,image_b.webp,image_c.webp`.
-  - **Use deepbooru prompt**: use DeepDanbooru to predict image tags; if you have input some prompts in the prompt area, it will append to the end of the prompts.
-  - **Using contextual information**: only if tags are present in both current and next frames' prediction results, this can improve accuracy (maybe).
+  - **Use deepbooru prompt**: use DeepDanbooru to predict image tags; if you have input some prompts in the prompt area, it will append to the end of the prompts. To use this feature, you need to set `--deepdanbooru` [option in SD webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings).
+  - **Using contextual information**: only if tags are present in both current and next frames' prediction results, this can improve accuracy (maybe). To use this feature, you need to set `--deepdanbooru` [option in SD webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings).
   - **Use csv prompt list** and **input file path**: use a `.csv` file as prompts for each image, one line for one image.
   - **Loopback**: similar to the loopback script, this will run input images img2img twice to enhance AI's creativity. 
   - **Firstpass width** and **firstpass height**: AI tends to be more creative when the firstpass size is smaller.
