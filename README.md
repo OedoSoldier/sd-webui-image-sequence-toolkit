@@ -33,3 +33,4 @@ Switch to **"img2img"** tab, under the **"script"** column, select **"enhanced i
 ## Credit
 
 AUTOMATIC1111's WebUI - https://github.com/AUTOMATIC1111/stable-diffusion-webui
+Multi-frame Rendering - https://xanthius.itch.io/multi-frame-rendering-for-stablediffusion
