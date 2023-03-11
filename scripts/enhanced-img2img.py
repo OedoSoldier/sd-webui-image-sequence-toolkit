@@ -33,11 +33,14 @@ def module_from_file(module_name, file_path):
     spec.loader.exec_module(module)
     return module
 
+
 def gr_show(visible=True):
     return {"visible": visible, "__type__": "update"}
 
+
 def gr_show_value_none(visible=True):
     return {"value": None, "visible": visible, "__type__": "update"}
+
 
 def gr_show_and_load(value=None, visible=True):
     if value:
@@ -48,6 +51,7 @@ def gr_show_and_load(value=None, visible=True):
     else:
         visible = False
     return {"value": value, "visible": visible, "__type__": "update"}
+
 
 class Script(scripts.Script):
     def title(self):
@@ -95,7 +99,8 @@ class Script(scripts.Script):
         with gr.Row():
             given_file = gr.Checkbox(
                 label='Process given file(s) under the input folder, seperate by comma')
-            specified_filename = gr.Textbox(label='Files to process', lines=1, visible=False)
+            specified_filename = gr.Textbox(
+                label='Files to process', lines=1, visible=False)
 
         with gr.Row():
             process_deepbooru = gr.Checkbox(
@@ -129,8 +134,19 @@ class Script(scripts.Script):
                 value=0.2)
 
         with gr.Row():
+            use_txt = gr.Checkbox(label='Read tags from text files')
+
+        with gr.Row():
+            txt_path = gr.Textbox(
+                label='Text files directory (Optional, will load from input dir if not specified)',
+                lines=1)
+
+        with gr.Row():
             use_csv = gr.Checkbox(label='Read tabular commands')
-            csv_path = gr.File(label='.csv or .xlsx', file_types=['file'], visible=False)
+            csv_path = gr.File(
+                label='.csv or .xlsx',
+                file_types=['file'],
+                visible=False)
 
         with gr.Row():
             with gr.Column():
@@ -181,6 +197,8 @@ class Script(scripts.Script):
             specified_filename,
             process_deepbooru,
             deepbooru_prev,
+            use_txt,
+            txt_path,
             use_csv,
             table_content,
             is_rerun,
@@ -204,13 +222,14 @@ class Script(scripts.Script):
             specified_filename,
             process_deepbooru,
             deepbooru_prev,
+            use_txt,
+            txt_path,
             use_csv,
             table_content,
             is_rerun,
             rerun_width,
             rerun_height,
             rerun_strength):
-
 
         crop_util = module_from_file(
             'util', 'extensions/enhanced-img2img/scripts/util.py').CropUtils()
@@ -233,9 +252,12 @@ class Script(scripts.Script):
             deepbooru.model.start()
 
         if use_csv:
-            prompt_list = [
-                i[0] for i in table_content.values.tolist()]
+            prompt_list = [i[0] for i in table_content.values.tolist()]
+            prompt_list.insert(0, prompt_list.pop())
         init_prompt = p.prompt
+        if init_prompt != "":
+            init_prompt = init_prompt.rstrip(
+                ', ') + ', ' if not init_prompt.rstrip().endswith(',') else init_prompt.rstrip() + ' '
 
         initial_info = None
         if given_file:
@@ -287,6 +309,25 @@ class Script(scripts.Script):
                         x) for x in os.listdir(input_dir)] if os.path.isfile(file)]
 
         print(f'Will process following files: {", ".join(images)}')
+
+        if use_txt:
+            if txt_path == "":
+                files = [
+                    re.sub(
+                        r'\.(jpg|png|jpeg|webp)$',
+                        '.txt',
+                        path) for path in images]
+            else:
+                files = [
+                    os.path.join(
+                        txt_path,
+                        os.path.basename(
+                            re.sub(
+                                r'\.(jpg|png|jpeg|webp)$',
+                                '.txt',
+                                path))) for path in images]
+            prompt_list = [open(file, 'r').read().rstrip('\n')
+                           for file in files]
 
         if use_img_mask:
             try:
@@ -404,9 +445,7 @@ class Script(scripts.Script):
                         init_prompt += ', '
                     p.prompt = init_prompt + deepbooru_prompt
 
-            if use_csv:
-                if len(init_prompt) > 0:
-                    init_prompt += ', '
+            if use_csv or use_txt:
                 p.prompt = init_prompt + prompt_list[frame]
 
             state.job = f'{idx} out of {img_len}: {batch_images[0][1]}'
