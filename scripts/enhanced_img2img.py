@@ -11,6 +11,9 @@ import pandas as pd
 import modules.scripts as scripts
 import gradio as gr
 
+from scripts.crop_utils import CropUtils
+from scripts.ei_utils import *
+
 from modules.processing import Processed, process_images, create_infotext
 from PIL import Image, ImageFilter, PngImagePlugin
 from modules.shared import opts, cmd_opts, state
@@ -19,7 +22,7 @@ from modules.sd_hijack import model_hijack
 if cmd_opts.deepdanbooru:
     import modules.deepbooru as deepbooru
 
-import importlib.util
+# import importlib.util
 import re
 
 re_findidx = re.compile(
@@ -27,35 +30,11 @@ re_findidx = re.compile(
 re_findname = re.compile(r'[\w-]+?(?=\.)')
 
 
-def module_from_file(module_name, file_path):
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def gr_show(visible=True):
-    return {"visible": visible, "__type__": "update"}
-
-
-def gr_show_value_none(visible=True):
-    return {"value": None, "visible": visible, "__type__": "update"}
-
-
-def gr_show_and_load(value=None, visible=True):
-    if value:
-        if value.orig_name.endswith('.csv'):
-            value = pd.read_csv(value.name)
-        else:
-            value = pd.read_excel(value.name)
-    else:
-        visible = False
-    return {"value": value, "visible": visible, "__type__": "update"}
-
-
-def sort_images(lst):
-    pattern = re.compile(r"\d+(?=\.)(?!.*\d)")
-    return sorted(lst, key=lambda x: int(re.search(pattern, x).group()))
+# def module_from_file(module_name, file_path):
+#     spec = importlib.util.spec_from_file_location(module_name, file_path)
+#     module = importlib.util.module_from_spec(spec)
+#     spec.loader.exec_module(module)
+#     return module
 
 
 class Script(scripts.Script):
@@ -236,8 +215,8 @@ class Script(scripts.Script):
             rerun_height,
             rerun_strength):
 
-        crop_util = module_from_file(
-            'util', 'extensions/enhanced-img2img/scripts/util.py').CropUtils()
+        # crop_util = module_from_file(
+        #     'util', 'extensions/enhanced-img2img/scripts/util.py').CropUtils()
 
         rotation_dict = {
             '-90': Image.Transpose.ROTATE_90,
@@ -413,7 +392,7 @@ class Script(scripts.Script):
                         mask = mask.transpose(
                             rotation_dict[rotate_img])
                     if is_crop:
-                        cropped, mask, crop_info = crop_util.crop_img(
+                        cropped, mask, crop_info = CropUtils.crop_img(
                             img.copy(), mask, alpha_threshold)
                         if not mask:
                             print(
@@ -489,7 +468,7 @@ class Script(scripts.Script):
                         rotation_dict[str(-int(rotate_img))])
 
                 if is_crop:
-                    output = crop_util.restore_by_file(
+                    output = CropUtils.restore_by_file(
                         batched_raw[0],
                         output,
                         batch_images[0][0],
