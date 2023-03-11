@@ -45,6 +45,11 @@ def gr_show_and_load(value=None, visible=True):
     return {"value": value, "visible": visible, "__type__": "update"}
 
 
+def sort_images(lst):
+    pattern = re.compile(r"\d+(?=\.)(?!.*\d)")
+    return sorted(lst, key=lambda x: int(re.search(pattern, x).group()))
+
+
 class Script(scripts.Script):
     def title(self):
         return "(Beta) Multi-frame Video rendering"
@@ -162,6 +167,7 @@ class Script(scripts.Script):
                 f) for f in os.listdir(input_dir) if re.match(
                 r'.+\.(jpg|png)$',
                 f)]
+        reference_imgs = sort_images(reference_imgs)
         print(f'Will process following files: {", ".join(reference_imgs)}')
 
         if use_txt:
