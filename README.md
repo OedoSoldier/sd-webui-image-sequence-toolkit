@@ -61,9 +61,9 @@ Switch to **"img2img"** tab, under the **"script"** column, select **"multi-fram
 
 ## Tutorial video (in Chinese)
 
-<iframe src="//player.bilibili.com/player.html?aid=563344169&bvid=BV1pv4y1o7An&cid=911472358&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
+[![](https://i0.hdslb.com/bfs/archive/d09c62ee226133e108495ad028e3f24d97009b66.jpg)](https://player.bilibili.com/player.html?aid=563344169&bvid=BV1pv4y1o7An&cid=911472358&page=1)
 
-<iframe src="//player.bilibili.com/player.html?aid=865839831&bvid=BV1R54y1M7u5&cid=1047760345&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
+[![](https://i0.hdslb.com/bfs/archive/45dcd6ddf1db432322c79685b9dfc0ece669f933.jpg)](https://player.bilibili.com/player.html?aid=865839831&bvid=BV1R54y1M7u5&cid=1047760345&page=1)
 
 ## Credit
 
