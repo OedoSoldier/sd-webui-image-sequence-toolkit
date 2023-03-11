@@ -53,6 +53,11 @@ def gr_show_and_load(value=None, visible=True):
     return {"value": value, "visible": visible, "__type__": "update"}
 
 
+def sort_images(lst):
+    pattern = re.compile(r"\d+(?=\.)(?!.*\d)")
+    return sorted(lst, key=lambda x: int(re.search(pattern, x).group()))
+
+
 class Script(scripts.Script):
     def title(self):
         return 'Enhanced img2img'
@@ -307,7 +312,7 @@ class Script(scripts.Script):
                     os.path.join(
                         input_dir,
                         x) for x in os.listdir(input_dir)] if os.path.isfile(file)]
-
+        images = sorted(images)
         print(f'Will process following files: {", ".join(images)}')
 
         if use_txt:
