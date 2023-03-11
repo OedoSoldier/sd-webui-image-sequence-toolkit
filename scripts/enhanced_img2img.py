@@ -122,7 +122,7 @@ class Script(scripts.Script):
 
         with gr.Row():
             txt_path = gr.Textbox(
-                label='Text files directory (Optional, will load from input dir if not specified)',
+                label='Text files directory (optional, will load from input dir if not specified)',
                 lines=1)
 
         with gr.Row():
