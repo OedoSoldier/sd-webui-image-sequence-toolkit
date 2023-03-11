@@ -61,9 +61,9 @@ Switch to **"img2img"** tab, under the **"script"** column, select **"multi-fram
 
 ## Tutorial video (in Chinese)
 
-[![](https://i0.hdslb.com/bfs/archive/d09c62ee226133e108495ad028e3f24d97009b66.jpg)](https://player.bilibili.com/player.html?aid=563344169&bvid=BV1pv4y1o7An&cid=911472358&page=1)
+<a href="https://www.bilibili.com/video/BV1pv4y1o7An"><img src="https://i0.hdslb.com/bfs/archive/d09c62ee226133e108495ad028e3f24d97009b66.jpg" alt="" width="453" height="288" /></a>
 
-[![](https://i0.hdslb.com/bfs/archive/45dcd6ddf1db432322c79685b9dfc0ece669f933.jpg)](https://player.bilibili.com/player.html?aid=865839831&bvid=BV1R54y1M7u5&cid=1047760345&page=1)
+<a href="https://www.bilibili.com/video/BV1R54y1M7u5"><img src="https://i0.hdslb.com/bfs/archive/45dcd6ddf1db432322c79685b9dfc0ece669f933.jpg" alt="" width="453" height="288" /></a>
 
 ## Credit
 
