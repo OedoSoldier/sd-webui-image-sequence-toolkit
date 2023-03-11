@@ -200,10 +200,13 @@ class Script(scripts.Script):
 
         initial_width = p.width
         initial_img = reference_imgs[0]  # p.init_images[0]
+        p.init_images = [
+            Image.open(initial_img).convert("RGB").resize(
+                (initial_width, p.height), Image.ANTIALIAS)]
 
-        grids = []
-        all_images = []
-        original_init_image = p.init_images
+        # grids = []
+        # all_images = []
+        # original_init_image = p.init_images
         original_prompt = p.prompt
         if original_prompt != "":
             original_prompt = original_prompt.rstrip(
@@ -223,8 +226,9 @@ class Script(scripts.Script):
         frame_color_correction = None
 
         # Reset to original init image at the start of each batch
-        p.init_images = original_init_image
         p.width = initial_width
+        p.mask_blur = 0
+        p.control_net_resize_mode = "Just Resize"
 
         for i in range(loops):
             if state.interrupted:
@@ -397,7 +401,7 @@ class Script(scripts.Script):
                     third_image = init_img
                     third_image_index = 0
                 elif third_frame_image == "OriginalImg" and i == 0:
-                    third_image = original_init_image[0]
+                    third_image = initial_img[0]
                     third_image_index = 0
                 elif third_frame_image == "Historical":
                     third_image = processed.images[0].crop(
