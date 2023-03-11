@@ -30,7 +30,7 @@ import re
 
 class Script(scripts.Script):
     def title(self):
-        return "(Beta) Multi-frame Video rendering"
+        return "Multi-frame rendering"
 
     def show(self, is_img2img):
         return is_img2img
@@ -44,14 +44,14 @@ class Script(scripts.Script):
             minimum=0,
             maximum=1,
             step=0.05,
-            label='Initial Denoise Strength',
+            label='Initial denoising strength',
             value=1,
             elem_id=self.elem_id("first_denoise"))
         append_interrogation = gr.Dropdown(
             label="Append interrogated prompt at each iteration", choices=[
                 "None", "CLIP", "DeepBooru"], value="None")
         third_frame_image = gr.Dropdown(
-            label="Third Frame Image",
+            label="Third frame (reference) image",
             choices=[
                 "None",
                 "FirstGen",
@@ -59,19 +59,19 @@ class Script(scripts.Script):
                 "Historical"],
             value="FirstGen")
         color_correction_enabled = gr.Checkbox(
-            label="Enable Color Correction",
+            label="Enable color correction",
             value=False,
             elem_id=self.elem_id("color_correction_enabled"))
         unfreeze_seed = gr.Checkbox(
-            label="Unfreeze Seed",
+            label="Unfreeze seed",
             value=False,
             elem_id=self.elem_id("unfreeze_seed"))
         loopback_source = gr.Dropdown(
-            label="Loopback Source",
+            label="Loopback source",
             choices=[
-                "PreviousFrame",
-                "InputFrame",
-                "FirstGen"],
+                "Previous",
+                "Current",
+                "First"],
             value="InputFrame")
 
         with gr.Row():
@@ -221,9 +221,9 @@ class Script(scripts.Script):
 
             if(i > 0):
                 loopback_image = p.init_images[0]
-                if loopback_source == "InputFrame":
+                if loopback_source == "Current":
                     loopback_image = p.control_net_input_image
-                elif loopback_source == "FirstGen":
+                elif loopback_source == "First":
                     loopback_image = history
 
                 if third_frame_image != "None":
