@@ -51,7 +51,7 @@ class Script(scripts.Script):
             label="Append interrogated prompt at each iteration", choices=[
                 "None", "CLIP", "DeepBooru"], value="None")
         third_frame_image = gr.Dropdown(
-            label="Third frame (reference) image",
+            label="Third column (reference) image",
             choices=[
                 "None",
                 "FirstGen",
