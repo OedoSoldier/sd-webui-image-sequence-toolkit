@@ -72,7 +72,7 @@ class Script(scripts.Script):
                 "Previous",
                 "Current",
                 "First"],
-            value="InputFrame")
+            value="Current")
 
         with gr.Row():
             use_txt = gr.Checkbox(label='Read tags from text files')
