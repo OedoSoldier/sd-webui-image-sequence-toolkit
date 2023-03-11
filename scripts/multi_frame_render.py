@@ -19,6 +19,9 @@ from modules.sd_hijack import model_hijack
 
 import pandas as pd
 
+import piexif
+import piexif.helper
+
 import os, re
 
 def gr_show(visible=True):
