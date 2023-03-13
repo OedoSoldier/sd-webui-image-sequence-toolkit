@@ -27,6 +27,9 @@ import piexif.helper
 import os
 import re
 
+re_findidx = re.compile(
+    r'(?=\S)(\d+)\.(?:[P|p][N|n][G|g]?|[J|j][P|p][G|g]?|[J|j][P|p][E|e][G|g]?|[W|w][E|e][B|b][P|p]?)\b')
+re_findname = re.compile(r'[\w-]+?(?=\.)')
 
 class Script(scripts.Script):
     def title(self):
@@ -75,6 +78,22 @@ class Script(scripts.Script):
             value="Current")
 
         with gr.Row():
+            given_file = gr.Checkbox(
+                label='Process given file(s) under the input folder, seperate by comma')
+            specified_filename = gr.Textbox(
+                label='Files to process', lines=1, visible=False)
+
+        use_cn = gr.Checkbox(label='Use another image as ControlNet input')
+        with gr.Row(visible=False) as cn_options:
+            max_models = opts.data.get("control_net_max_models_num", 1)
+            cn_dirs = []
+            with gr.Group():
+                with gr.Tabs():
+                    for i in range(max_models):
+                        with gr.Tab(f"ControlNet-{i}", open=False):
+                            cn_dirs.append(gr.Textbox(label='ControlNet input directory', lines=1))
+
+        with gr.Row():
             use_txt = gr.Checkbox(label='Read tags from text files')
 
         with gr.Row():
@@ -103,6 +122,16 @@ class Script(scripts.Script):
             inputs=[csv_path],
             outputs=[table_content],
         )
+        given_file.change(
+            fn=lambda x: gr_show(x),
+            inputs=[given_file],
+            outputs=[specified_filename],
+        )
+        use_cn.change(
+            fn=lambda x: gr_show(x),
+            inputs=[use_cn],
+            outputs=[cn_options],
+        )
 
         return [
             append_interrogation,
@@ -115,8 +144,12 @@ class Script(scripts.Script):
             loopback_source,
             use_csv,
             table_content,
+            given_file,
+            specified_filename,
             use_txt,
-            txt_path]
+            txt_path,
+            use_cn,
+            *cn_dirs,]
 
     def run(
             self,
@@ -131,20 +164,70 @@ class Script(scripts.Script):
             loopback_source,
             use_csv,
             table_content,
+            given_file,
+            specified_filename,
             use_txt,
-            txt_path):
+            txt_path,
+            use_cn,
+            *cn_dirs,):
         freeze_seed = not unfreeze_seed
 
         if use_csv:
             prompt_list = [i[0] for i in table_content.values.tolist()]
             prompt_list.insert(0, prompt_list.pop())
 
-        reference_imgs = [
-            os.path.join(
-                input_dir,
-                f) for f in os.listdir(input_dir) if re.match(
-                r'.+\.(jpg|png)$',
-                f)]
+        history_imgs = None
+        if given_file:
+            if specified_filename == '':
+                images = [os.path.join(
+                    input_dir,
+                    f) for f in os.listdir(input_dir) if re.match(
+                    r'.+\.(jpg|png)$',
+                    f)]
+            else:
+                images = []
+                images_in_folder = [os.path.join(
+                    input_dir,
+                    f) for f in os.listdir(input_dir) if re.match(
+                    r'.+\.(jpg|png)$',
+                    f)]
+                try:
+                    images_idx = [int(re.findall(re_findidx, j)[0])
+                                  for j in images_in_folder]
+                except BaseException:
+                    images_idx = [re.findall(re_findname, j)[0]
+                                  for j in images_in_folder]
+                images_in_folder_dict = dict(zip(images_idx, images_in_folder))
+                sep = ',' if ',' in specified_filename else ' '
+                for i in specified_filename.split(sep):
+                    if i in images_in_folder:
+                        images.append(i)
+                        start = end = i
+                    else:
+                        try:
+                            match = re.search(r'(^\d*)-(\d*$)', i)
+                            if match:
+                                start, end = match.groups()
+                                if start == '':
+                                    start = images_idx[0]
+                                if end == '':
+                                    end = images_idx[-1]
+                                images += [images_in_folder_dict[j]
+                                           for j in list(range(int(start), int(end) + 1))]
+                        except BaseException:
+                            images.append(images_in_folder_dict[int(i)])
+                if len(images) == 0:
+                    raise FileNotFoundError
+            reference_imgs = [images_in_folder_dict[images_idx[0]], images_in_folder_dict[max(0, int(start) - 1)]] + images
+            history_imgs = [images_in_folder_dict[images_idx[0]], images_in_folder_dict[max(images_idx[0], int(start) - 2)], images_in_folder_dict[max(0, int(start) - 1)]]
+            history_imgs = [images_in_folder_dict[images_idx[0]]] + [os.path.join(output_dir, os.path.basename(f)) for f in history_imgs]
+        else:
+            reference_imgs = [
+                os.path.join(
+                    input_dir,
+                    f) for f in os.listdir(input_dir) if re.match(
+                    r'.+\.(jpg|png)$',
+                    f)]
         reference_imgs = sort_images(reference_imgs)
         print(f'Will process following files: {", ".join(reference_imgs)}')
 
@@ -163,6 +246,12 @@ class Script(scripts.Script):
                                 path))) for path in reference_imgs]
             prompt_list = [open(file, 'r').read().rstrip('\n')
                            for file in files]
+
+        if use_cn:
+            cn_dirs = [input_dir if cn_dir=="" else cn_dir for cn_dir in cn_dirs]
+            cn_images = [[os.path.join(
+                            cn_dir,
+                            os.path.basename(path)) for path in reference_imgs] for cn_dir in cn_dirs]
 
         loops = len(reference_imgs)
 
@@ -190,7 +279,7 @@ class Script(scripts.Script):
             original_prompt = original_prompt.rstrip(
                 ', ') + ', ' if not original_prompt.rstrip().endswith(',') else original_prompt.rstrip() + ' '
         original_denoise = p.denoising_strength
-        state.job_count = loops * batch_count
+        state.job_count = (loops - 2) * batch_count
 
         initial_color_corrections = [
             processing.setup_color_correction(
@@ -211,7 +300,30 @@ class Script(scripts.Script):
         for i in range(loops):
             if state.interrupted:
                 break
+            if given_file and i < 2:
+                p.init_images[0] = Image.open(
+                    history_imgs[-1]).convert("RGB").resize(
+                    (initial_width, p.height), Image.ANTIALIAS)
+                history = p.init_images[0]
+                if third_frame_image != "None":
+                    if third_frame_image == "FirstGen" and i == 0:
+                        third_image = Image.open(
+                            history_imgs[1]).convert("RGB").resize(
+                            (initial_width, p.height), Image.ANTIALIAS)
+                        third_image_index = 0
+                    elif third_frame_image == "OriginalImg" and i == 0:
+                        third_image = Image.open(
+                            history_imgs[0]).convert("RGB").resize(
+                            (initial_width, p.height), Image.ANTIALIAS)
+                        third_image_index = 0
+                    elif third_frame_image == "Historical":
+                        third_image = Image.open(
+                            history_imgs[2]).convert("RGB").resize(
+                            (initial_width, p.height), Image.ANTIALIAS)
+                        third_image_index = (i - 1)
+                continue
             filename = os.path.basename(reference_imgs[i])
+            print(f'Processing: {reference_imgs[i]}')
             p.n_iter = 1
             p.batch_size = 1
             p.do_not_save_grid = True
@@ -240,12 +352,24 @@ class Script(scripts.Script):
                         p.color_corrections = [
                             processing.setup_color_correction(img)]
 
-                    msk = Image.new("RGB", (initial_width * 3, p.height))
-                    msk.paste(Image.open(reference_imgs[i - 1]).convert("RGB").resize(
-                        (initial_width, p.height), Image.ANTIALIAS), (0, 0))
-                    msk.paste(p.control_net_input_image, (initial_width, 0))
-                    msk.paste(Image.open(reference_imgs[third_image_index]).convert("RGB").resize(
-                        (initial_width, p.height), Image.ANTIALIAS), (initial_width * 2, 0))
+                    if use_cn:
+                        msk = []
+                        for cn_image in cn_images:
+                            m = Image.new("RGB", (initial_width * 3, p.height))
+                            m.paste(Image.open(cn_image[i - 1]).convert("RGB").resize(
+                                (initial_width, p.height), Image.ANTIALIAS), (0, 0))
+                            m.paste(Image.open(cn_image[i]).convert("RGB").resize(
+                                (initial_width, p.height), Image.ANTIALIAS), (initial_width, 0))
+                            m.paste(Image.open(cn_image[third_image_index]).convert("RGB").resize(
+                                (initial_width, p.height), Image.ANTIALIAS), (initial_width * 2, 0))
+                            msk.append(m)
+                    else:
+                        msk = Image.new("RGB", (initial_width * 3, p.height))
+                        msk.paste(Image.open(reference_imgs[i - 1]).convert("RGB").resize(
+                            (initial_width, p.height), Image.ANTIALIAS), (0, 0))
+                        msk.paste(p.control_net_input_image, (initial_width, 0))
+                        msk.paste(Image.open(reference_imgs[third_image_index]).convert("RGB").resize(
+                            (initial_width, p.height), Image.ANTIALIAS), (initial_width * 2, 0))
                     p.control_net_input_image = msk
 
                     latent_mask = Image.new(
@@ -266,10 +390,19 @@ class Script(scripts.Script):
                         p.color_corrections = [
                             processing.setup_color_correction(img)]
 
-                    msk = Image.new("RGB", (initial_width * 2, p.height))
-                    msk.paste(Image.open(reference_imgs[i - 1]).convert("RGB").resize(
-                        (initial_width, p.height), Image.ANTIALIAS), (0, 0))
-                    msk.paste(p.control_net_input_image, (initial_width, 0))
+                    if use_cn:
+                        msk = []
+                        for cn_image in cn_images:
+                            m = Image.new("RGB", (initial_width * 2, p.height))
+                            m.paste(Image.open(cn_image[i - 1]).convert("RGB").resize(
+                                (initial_width, p.height), Image.ANTIALIAS), (0, 0))
+                            m.paste(Image.open(cn_image[i]).convert("RGB").resize(
+                                (initial_width, p.height), Image.ANTIALIAS), (initial_width, 0))
+                    else:
+                        msk = Image.new("RGB", (initial_width * 2, p.height))
+                        msk.paste(Image.open(reference_imgs[i - 1]).convert("RGB").resize(
+                            (initial_width, p.height), Image.ANTIALIAS), (0, 0))
+                        msk.paste(p.control_net_input_image, (initial_width, 0))
                     p.control_net_input_image = msk
                     # frames.append(msk)
 
@@ -291,8 +424,10 @@ class Script(scripts.Script):
                 # p.latent_mask = latent_mask
                 p.image_mask = latent_mask
                 p.denoising_strength = first_denoise
-                p.control_net_input_image = p.control_net_input_image.resize(
-                    (initial_width, p.height))
+                if use_cn:
+                    p.control_net_input_image = [Image.open(cn_image[0]).resize((initial_width, p.height)) for cn_image in cn_images]
+                else:
+                    p.control_net_input_image = p.control_net_input_image.resize((initial_width, p.height))
                 # frames.append(p.control_net_input_image)
 
             # if opts.img2img_color_correction:

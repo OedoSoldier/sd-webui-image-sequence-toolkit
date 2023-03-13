@@ -66,6 +66,16 @@ class Script(scripts.Script):
         with gr.Row():
             use_img_mask = gr.Checkbox(label='Use another image as mask')
             is_crop = gr.Checkbox(label='Zoom in masked area')
+            use_cn = gr.Checkbox(label='Use another image as ControlNet input')
+
+        with gr.Row(visible=False) as cn_options:
+            max_models = opts.data.get("control_net_max_models_num", 1)
+            cn_dirs = []
+            with gr.Group():
+                with gr.Tabs():
+                    for i in range(max_models):
+                        with gr.Tab(f"ControlNet-{i}", open=False):
+                            cn_dirs.append(gr.Textbox(label='ControlNet input directory', lines=1))
 
         with gr.Row():
             alpha_threshold = gr.Slider(
@@ -141,6 +151,11 @@ class Script(scripts.Script):
             inputs=[use_img_mask],
             outputs=[mask_options],
         )
+        use_cn.change(
+            fn=lambda x: gr_show(x),
+            inputs=[use_cn],
+            outputs=[cn_options],
+        )
         given_file.change(
             fn=lambda x: gr_show(x),
             inputs=[given_file],
@@ -175,6 +190,7 @@ class Script(scripts.Script):
             use_img_mask,
             as_output_alpha,
             is_crop,
+            use_cn,
             alpha_threshold,
             rotate_img,
             given_file,
@@ -188,7 +204,8 @@ class Script(scripts.Script):
             is_rerun,
             rerun_width,
             rerun_height,
-            rerun_strength]
+            rerun_strength,
+            *cn_dirs,]
 
     def run(
             self,
@@ -200,6 +217,7 @@ class Script(scripts.Script):
             use_img_mask,
             as_output_alpha,
             is_crop,
+            use_cn,
             alpha_threshold,
             rotate_img,
             given_file,
@@ -213,7 +231,8 @@ class Script(scripts.Script):
             is_rerun,
             rerun_width,
             rerun_height,
-            rerun_strength):
+            rerun_strength,
+            *cn_dirs):
 
         # crop_util = module_from_file(
         #     'util', 'extensions/enhanced-img2img/scripts/util.py').CropUtils()
@@ -246,18 +265,18 @@ class Script(scripts.Script):
         initial_info = None
         if given_file:
             if specified_filename == '':
-                images = [
-                    file for file in [
-                        os.path.join(
-                            input_dir,
-                            x) for x in os.listdir(input_dir)] if os.path.isfile(file)]
+                images = [os.path.join(
+                    input_dir,
+                    f) for f in os.listdir(input_dir) if re.match(
+                    r'.+\.(jpg|png)$',
+                    f)]
             else:
                 images = []
-                images_in_folder = [
-                    file for file in [
-                        os.path.join(
-                            input_dir,
-                            x) for x in os.listdir(input_dir)] if os.path.isfile(file)]
+                images_in_folder = [os.path.join(
+                    input_dir,
+                    f) for f in os.listdir(input_dir) if re.match(
+                    r'.+\.(jpg|png)$',
+                    f)]
                 try:
                     images_idx = [int(re.findall(re_findidx, j)[0])
                                   for j in images_in_folder]
@@ -266,9 +285,10 @@ class Script(scripts.Script):
                                   for j in images_in_folder]
                 images_in_folder_dict = dict(zip(images_idx, images_in_folder))
                 sep = ',' if ',' in specified_filename else ' '
-                for i in specified_filename.split(','):
+                for i in specified_filename.split(sep):
                     if i in images_in_folder:
                         images.append(i)
+                        start = end = i
                     else:
                         try:
                             match = re.search(r'(^\d*)-(\d*$)', i)
@@ -291,6 +311,7 @@ class Script(scripts.Script):
                     os.path.join(
                         input_dir,
                         x) for x in os.listdir(input_dir)] if os.path.isfile(file)]
+        images = [f for f in images if re.match(r'.+\.(jpg|png)$', f)]
         images = sorted(images)
         print(f'Will process following files: {", ".join(images)}')
 
@@ -314,33 +335,54 @@ class Script(scripts.Script):
                            for file in files]
 
         if use_img_mask:
-            try:
-                masks = [
-                    re.findall(
-                        re_findidx,
-                        file)[0] for file in [
-                        os.path.join(
-                            mask_dir,
-                            x) for x in os.listdir(mask_dir)] if os.path.isfile(file)]
-            except BaseException:
-                masks = [
-                    re.findall(
-                        re_findname,
-                        file)[0] for file in [
-                        os.path.join(
-                            mask_dir,
-                            x) for x in os.listdir(mask_dir)] if os.path.isfile(file)]
-
             masks_in_folder = [
                 file for file in [
                     os.path.join(
                         mask_dir,
                         x) for x in os.listdir(mask_dir)] if os.path.isfile(file)]
+            masks_in_folder = [f for f in masks_in_folder if re.match(r'.+\.(jpg|png)$', f)]
+            try:
+                masks = [
+                    re.findall(
+                        re_findidx,
+                        file)[0] for file in masks_in_folder if os.path.isfile(file)]
+            except BaseException:
+                masks = [
+                    re.findall(
+                        re_findname,
+                        file)[0] for file in masks_in_folder if os.path.isfile(file)]
 
             masks_in_folder_dict = dict(zip(masks, masks_in_folder))
 
         else:
             masks = images
+
+        if use_cn:
+            cn_in_folder_dicts = []
+            for cn_dir in cn_dirs:
+                if cn_dir == '':
+                    cn_dir = input_dir
+
+                cn_in_folder = [
+                    file for file in [
+                        os.path.join(
+                            cn_dir,
+                            x) for x in os.listdir(cn_dir)] if os.path.isfile(file)]
+                cn_in_folder = [f for f in cn_in_folder if re.match(r'.+\.(jpg|png)$', f)]
+
+                try:
+                    cn_images_ = [
+                        re.findall(
+                            re_findidx,
+                            file)[0] for file in cn_in_folder if os.path.isfile(file)]
+                except BaseException:
+                    cn_images_ = [
+                        re.findall(
+                            re_findname,
+                            file)[0] for file in cn_in_folder if os.path.isfile(file)]
+
+                cn_in_folder_dict = dict(zip(cn_images_, cn_in_folder))
+                cn_in_folder_dicts.append(cn_in_folder_dict)
 
         p.img_len = 1
         p.do_not_save_grid = True
@@ -364,17 +406,21 @@ class Script(scripts.Script):
                 break
             batch_images = []
             batched_raw = []
-            cropped, mask, crop_info = None, None, None
+            cropped, mask, crop_info, cropped_cns = None, None, None, None
             print(f'Processing: {path}')
             try:
                 img = Image.open(path)
+                try:
+                    to_process = re.findall(re_findidx, path)[0]
+                except BaseException:
+                    to_process = re.findall(re_findname, path)[0]
+                if use_cn:
+                    cn_images = [Image.open(cn_in_folder_dict[to_process]) for cn_in_folder_dict in cn_in_folder_dicts]
                 if rotate_img != '0':
                     img = img.transpose(rotation_dict[rotate_img])
+                    if use_cn:
+                        cn_images = [cn_image.transpose(rotation_dict[rotate_img]) for cn_image in cn_images]
                 if use_img_mask:
-                    try:
-                        to_process = re.findall(re_findidx, path)[0]
-                    except BaseException:
-                        to_process = re.findall(re_findname, path)[0]
                     try:
                         mask = Image.open(masks_in_folder_dict[to_process])
                         a = mask.split()[-1].convert('L').point(
@@ -392,8 +438,11 @@ class Script(scripts.Script):
                         mask = mask.transpose(
                             rotation_dict[rotate_img])
                     if is_crop:
+                        original_mask = mask.copy()
                         cropped, mask, crop_info = CropUtils.crop_img(
                             img.copy(), mask, alpha_threshold)
+                        if use_cn:
+                            cropped_cns = [i[0] for i in [CropUtils.crop_img(cn_image.copy(), original_mask, alpha_threshold) for cn_image in cn_images]]
                         if not mask:
                             print(
                                 f'Mask of {os.path.basename(path)} is blank, output original image!')
@@ -404,6 +453,8 @@ class Script(scripts.Script):
                             continue
                         batched_raw.append(img.copy())
                 img = cropped if cropped is not None else img
+                if use_cn:
+                    cn_images = cropped_cns if cropped_cns is not None else cn_images
                 batch_images.append((img, path))
 
             except BaseException:
@@ -437,6 +488,9 @@ class Script(scripts.Script):
 
             if mask is not None and (use_mask or use_img_mask):
                 p.image_mask = mask
+
+            if cn_images is not None and use_cn:
+                p.control_net_input_image = cn_images
 
             def process_images_with_size(p, size, strength):
                 p.width, p.height, = size
