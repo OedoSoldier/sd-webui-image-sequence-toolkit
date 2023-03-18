@@ -406,7 +406,7 @@ class Script(scripts.Script):
                 break
             batch_images = []
             batched_raw = []
-            cropped, mask, crop_info, cropped_cns = None, None, None, None
+            cropped, mask, crop_info, cropped_cns, cn_images = None, None, None, None, None
             print(f'Processing: {path}')
             try:
                 img = Image.open(path)

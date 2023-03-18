@@ -279,7 +279,7 @@ class Script(scripts.Script):
             original_prompt = original_prompt.rstrip(
                 ', ') + ', ' if not original_prompt.rstrip().endswith(',') else original_prompt.rstrip() + ' '
         original_denoise = p.denoising_strength
-        state.job_count = (loops - 2) * batch_count
+        state.job_count = (loops - 2) * batch_count if given_file else loops * batch_count
 
         initial_color_corrections = [
             processing.setup_color_correction(
@@ -419,15 +419,16 @@ class Script(scripts.Script):
                     p.image_mask = latent_mask
                     p.denoising_strength = original_denoise
             else:
+                p.init_images = [p.init_images[0].resize((initial_width, p.height), Image.ANTIALIAS)]
                 latent_mask = Image.new(
                     "RGB", (initial_width, p.height), "white")
                 # p.latent_mask = latent_mask
                 p.image_mask = latent_mask
                 p.denoising_strength = first_denoise
                 if use_cn:
-                    p.control_net_input_image = [Image.open(cn_image[0]).resize((initial_width, p.height)) for cn_image in cn_images]
+                    p.control_net_input_image = [Image.open(cn_image[0]).resize((initial_width, p.height), Image.ANTIALIAS) for cn_image in cn_images]
                 else:
-                    p.control_net_input_image = p.control_net_input_image.resize((initial_width, p.height))
+                    p.control_net_input_image = p.control_net_input_image.resize((initial_width, p.height), Image.ANTIALIAS)
                 # frames.append(p.control_net_input_image)
 
             # if opts.img2img_color_correction:
