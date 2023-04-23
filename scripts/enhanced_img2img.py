@@ -44,36 +44,43 @@ class Script(scripts.Script):
     def description(self):
         return 'Process multiple images with masks'
 
-    def show(self, is_img2img):
-        return is_img2img
+    # def show(self, is_img2img):
+    #     return scripts.AlwaysVisible # is_img2img
 
     def ui(self, is_img2img):
-        if not is_img2img:
-            return None
+        # if not is_img2img:
+        #     return None
+        self.is_img2img = is_img2img
+        self.max_models = opts.data.get("control_net_max_models_num", 1)
 
         with gr.Row():
             input_dir = gr.Textbox(label='Input directory', lines=1)
             use_mask = gr.Checkbox(
-                label='Use input image\'s alpha channel as mask')
+                label='Use input image\'s alpha channel as mask', visible=self.is_img2img)
 
         output_dir = gr.Textbox(label='Output directory', lines=1)
+        
+        with gr.Row():
+            use_cn_inpaint = gr.Checkbox(
+                label='Use Control Net inpaint model')
+            cn_inpaint_num = gr.Dropdown(
+                [f"Control Model - {i}" for i in range(self.max_models)], label="ControlNet inpaint model index", visible=False)
 
         with gr.Row(visible=False) as mask_options:
             mask_dir = gr.Textbox(label='Mask directory', lines=1)
             as_output_alpha = gr.Checkbox(
-                label='Use mask as output alpha channel')
+                label='Use mask as output alpha channel', visible=self.is_img2img)
 
         with gr.Row():
-            use_img_mask = gr.Checkbox(label='Use another image as mask')
-            is_crop = gr.Checkbox(label='Zoom in masked area')
-            use_cn = gr.Checkbox(label='Use another image as ControlNet input')
+            use_img_mask = gr.Checkbox(label='Use another image as mask', visible=self.is_img2img)
+            is_crop = gr.Checkbox(label='Zoom in masked area', visible=self.is_img2img)
+            use_cn = gr.Checkbox(label='Use another image as ControlNet input', visible=self.is_img2img)
 
-        with gr.Row(visible=False) as cn_options:
-            max_models = opts.data.get("control_net_max_models_num", 1)
+        with gr.Row(visible=(False or not self.is_img2img)) as cn_options:
             cn_dirs = []
             with gr.Group():
                 with gr.Tabs():
-                    for i in range(max_models):
+                    for i in range(self.max_models):
                         with gr.Tab(f"ControlNet-{i}", open=False):
                             cn_dirs.append(gr.Textbox(label='ControlNet input directory', lines=1))
 
@@ -83,7 +90,8 @@ class Script(scripts.Script):
                 maximum=255,
                 step=1,
                 label='Alpha threshold',
-                value=50)
+                value=50,
+                visible=self.is_img2img)
 
         with gr.Row():
             rotate_img = gr.Radio(
@@ -104,7 +112,7 @@ class Script(scripts.Script):
                 label='Using contextual information',
                 visible=False)
 
-        with gr.Row():
+        with gr.Row(visible=self.is_img2img):
             is_rerun = gr.Checkbox(label='Loopback')
 
         with gr.Row(visible=False) as rerun_options:
@@ -151,6 +159,11 @@ class Script(scripts.Script):
             inputs=[use_img_mask],
             outputs=[mask_options],
         )
+        use_cn_inpaint.change(
+            fn=lambda x: [gr_set_value(x), gr_set_value(x)],
+            inputs=[use_cn_inpaint],
+            outputs=[use_img_mask, use_cn],
+        )
         use_cn.change(
             fn=lambda x: gr_show(x),
             inputs=[use_cn],
@@ -181,6 +194,11 @@ class Script(scripts.Script):
             inputs=[is_rerun],
             outputs=[rerun_options],
         )
+        use_cn_inpaint.change(
+            fn=lambda x: [gr_show(x), gr_show(x), gr_show(x)],
+            inputs=[use_cn_inpaint],
+            outputs=[use_mask, use_img_mask, cn_inpaint_num],
+        )
 
         return [
             input_dir,
@@ -205,6 +223,8 @@ class Script(scripts.Script):
             rerun_width,
             rerun_height,
             rerun_strength,
+            use_cn_inpaint,
+            cn_inpaint_num,
             *cn_dirs,]
 
     def run(
@@ -232,7 +252,11 @@ class Script(scripts.Script):
             rerun_width,
             rerun_height,
             rerun_strength,
+            use_cn_inpaint,
+            cn_inpaint_num,
             *cn_dirs):
+        
+        mask_flag = self.is_img2img or (use_cn_inpaint and not self.is_img2img)
 
         # crop_util = module_from_file(
         #     'util', 'extensions/enhanced-img2img/scripts/util.py').CropUtils()
@@ -242,12 +266,12 @@ class Script(scripts.Script):
             '180': Image.Transpose.ROTATE_180,
             '90': Image.Transpose.ROTATE_270}
 
-        if use_mask:
+        if use_mask and mask_flag:
             mask_dir = input_dir
             use_img_mask = True
             as_output_alpha = True
 
-        if is_rerun:
+        if is_rerun and self.is_img2img:
             original_strength = copy.deepcopy(p.denoising_strength)
             original_size = (copy.deepcopy(p.width), copy.deepcopy(p.height))
 
@@ -334,7 +358,7 @@ class Script(scripts.Script):
             prompt_list = [open(file, 'r').read().rstrip('\n')
                            for file in files]
 
-        if use_img_mask:
+        if use_img_mask and mask_flag:
             masks_in_folder = [
                 file for file in [
                     os.path.join(
@@ -357,7 +381,7 @@ class Script(scripts.Script):
         else:
             masks = images
 
-        if use_cn:
+        if use_cn or not self.is_img2img:
             cn_in_folder_dicts = []
             for cn_dir in cn_dirs:
                 if cn_dir == '':
@@ -414,13 +438,13 @@ class Script(scripts.Script):
                     to_process = re.findall(re_findidx, path)[0]
                 except BaseException:
                     to_process = re.findall(re_findname, path)[0]
-                if use_cn:
+                if use_cn or not self.is_img2img:
                     cn_images = [Image.open(cn_in_folder_dict[to_process]) for cn_in_folder_dict in cn_in_folder_dicts]
                 if rotate_img != '0':
                     img = img.transpose(rotation_dict[rotate_img])
                     if use_cn:
                         cn_images = [cn_image.transpose(rotation_dict[rotate_img]) for cn_image in cn_images]
-                if use_img_mask:
+                if use_img_mask and mask_flag:
                     try:
                         mask = Image.open(masks_in_folder_dict[to_process])
                         a = mask.split()[-1].convert('L').point(
@@ -452,9 +476,9 @@ class Script(scripts.Script):
                                     os.path.basename(path)))
                             continue
                         batched_raw.append(img.copy())
-                img = cropped if cropped is not None else img
-                if use_cn:
-                    cn_images = cropped_cns if cropped_cns is not None else cn_images
+                        img = cropped if cropped is not None else img
+                        if use_cn:
+                            cn_images = cropped_cns if cropped_cns is not None else cn_images
                 batch_images.append((img, path))
 
             except BaseException:
@@ -484,20 +508,25 @@ class Script(scripts.Script):
                 p.prompt = init_prompt + prompt_list[frame]
 
             state.job = f'{idx} out of {img_len}: {batch_images[0][1]}'
-            p.init_images = [x[0] for x in batch_images]
+            if self.is_img2img:
+                p.init_images = [x[0] for x in batch_images]
 
-            if mask is not None and (use_mask or use_img_mask):
+            if mask is not None and (use_mask or use_img_mask) and self.is_img2img:
                 p.image_mask = mask
 
-            if cn_images is not None and use_cn:
+            if cn_images is not None and (use_cn or not self.is_img2img):
                 p.control_net_input_image = cn_images
+
+            if use_cn_inpaint:
+                inpaint_idx = int(cn_inpaint_num[-1])
+                p.control_net_input_image[inpaint_idx] = {"image": p.control_net_input_image[0 if inpaint_idx != 0 else 1], "mask": mask.convert("L")}
 
             def process_images_with_size(p, size, strength):
                 p.width, p.height, = size
                 p.strength = strength
                 return process_images(p)
 
-            if is_rerun:
+            if is_rerun and self.is_img2img:
                 proc = process_images_with_size(
                     p, (rerun_width, rerun_height), rerun_strength)
                 p_2 = p
@@ -511,7 +540,7 @@ class Script(scripts.Script):
                 initial_info = proc.info
             for output, (input_img, path) in zip(proc.images, batch_images):
                 filename = os.path.basename(path)
-                if use_img_mask:
+                if use_img_mask and self.is_img2img:
                     if as_output_alpha:
                         output.putalpha(
                             p.image_mask.resize(
@@ -521,7 +550,7 @@ class Script(scripts.Script):
                     output = output.transpose(
                         rotation_dict[str(-int(rotate_img))])
 
-                if is_crop:
+                if is_crop and self.is_img2img:
                     output = CropUtils.restore_by_file(
                         batched_raw[0],
                         output,
@@ -552,7 +581,7 @@ class Script(scripts.Script):
                 fullfn_without_extension, extension = os.path.splitext(
                     filename)
 
-                if is_rerun:
+                if is_rerun and self.is_img2img:
                     params.pnginfo['loopback_params'] = f'Firstpass size: {rerun_width}x{rerun_height}, Firstpass strength: {original_strength}'
 
                 info = params.pnginfo.get('parameters', None)
