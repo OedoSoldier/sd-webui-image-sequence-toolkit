@@ -1,4 +1,4 @@
-# Image Ssequence Toolkit
+# Image Sequence Toolkit
 
 This is an extension for [AUTOMATIC111's WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui), which supports batch processing and better inpainting.
 
