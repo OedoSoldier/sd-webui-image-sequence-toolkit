@@ -1,4 +1,4 @@
-# Enhanced img2img
+# Image Ssequence Toolkit
 
 This is an extension for [AUTOMATIC111's WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui), which supports batch processing and better inpainting.
 
