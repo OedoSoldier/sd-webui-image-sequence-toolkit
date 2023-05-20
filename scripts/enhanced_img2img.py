@@ -7,6 +7,7 @@ import sys
 import traceback
 import copy
 import pandas as pd
+import piexif
 
 import modules.scripts as scripts
 import gradio as gr
