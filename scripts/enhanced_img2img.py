@@ -22,9 +22,6 @@ from modules.sd_hijack import model_hijack
 if cmd_opts.deepdanbooru:
     import modules.deepbooru as deepbooru
 
-import importlib
-external_code = importlib.import_module('extensions.sd-webui-controlnet.scripts.external_code', 'external_code')
-
 import re
 
 re_findidx = re.compile(
@@ -466,6 +463,9 @@ class Script(scripts.Script):
             state.job_count *= len(images)
 
         def set_reference(p, idx, enabled=False):
+            import importlib
+            external_code = importlib.import_module('extensions.sd-webui-controlnet.scripts.external_code', 'external_code')
+
             cn_units = external_code.get_all_units_in_processing(p)
             cn_units[idx].enabled = enabled
             external_code.update_cn_script_in_processing(p, cn_units)
