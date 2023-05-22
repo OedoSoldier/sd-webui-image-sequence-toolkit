@@ -22,7 +22,9 @@ from modules.sd_hijack import model_hijack
 if cmd_opts.deepdanbooru:
     import modules.deepbooru as deepbooru
 
-# import importlib.util
+import importlib
+external_code = importlib.import_module('extensions.sd-webui-controlnet.scripts.external_code', 'external_code')
+
 import re
 
 re_findidx = re.compile(
@@ -65,6 +67,14 @@ class Script(scripts.Script):
                 label='Use Control Net inpaint model')
             cn_inpaint_num = gr.Dropdown(
                 [f"Control Model - {i}" for i in range(self.max_models)], label="ControlNet inpaint model index", visible=False)
+            
+        with gr.Row():
+            use_cn_reference = gr.Checkbox(
+                label='Use Control Net reference only mode')
+            cn_reference_num = gr.Dropdown(
+                [f"Control Model - {i}" for i in range(self.max_models)], label="ControlNet reference only index", visible=False)
+            cn_reference_source = gr.Dropdown(
+                ["First", "Previous", "Current"], label="Reference loopback source", visible=False)
 
         with gr.Row(visible=False) as mask_options:
             mask_dir = gr.Textbox(label='Mask directory', lines=1)
@@ -199,6 +209,11 @@ class Script(scripts.Script):
             inputs=[use_cn_inpaint],
             outputs=[use_mask, use_img_mask, cn_inpaint_num],
         )
+        use_cn_reference.change(
+            fn=lambda x: [gr_show(x), gr_show(x)],
+            inputs=[use_cn_reference],
+            outputs=[cn_reference_num, cn_reference_source],
+        )
 
         return [
             input_dir,
@@ -225,6 +240,9 @@ class Script(scripts.Script):
             rerun_strength,
             use_cn_inpaint,
             cn_inpaint_num,
+            use_cn_reference,
+            cn_reference_num,
+            cn_reference_source,
             *cn_dirs,]
 
     def run(
@@ -254,9 +272,15 @@ class Script(scripts.Script):
             rerun_strength,
             use_cn_inpaint,
             cn_inpaint_num,
+            use_cn_reference,
+            cn_reference_num,
+            cn_reference_source,
             *cn_dirs):
         
         mask_flag = self.is_img2img or (use_cn_inpaint and not self.is_img2img)
+
+        if use_cn_reference or use_cn_inpaint:
+            use_cn = True
 
         # crop_util = module_from_file(
         #     'util', 'extensions/enhanced-img2img/scripts/util.py').CropUtils()
@@ -287,6 +311,13 @@ class Script(scripts.Script):
                 ', ') + ', ' if not init_prompt.rstrip().endswith(',') else init_prompt.rstrip() + ' '
 
         initial_info = None
+        start_img = None
+        reference_img = None
+        images_in_folder = [os.path.join(
+            input_dir,
+            f) for f in os.listdir(input_dir) if re.match(
+            r'.+\.(jpg|png)$',
+            f)]
         if given_file:
             if specified_filename == '':
                 images = [os.path.join(
@@ -296,11 +327,6 @@ class Script(scripts.Script):
                     f)]
             else:
                 images = []
-                images_in_folder = [os.path.join(
-                    input_dir,
-                    f) for f in os.listdir(input_dir) if re.match(
-                    r'.+\.(jpg|png)$',
-                    f)]
                 try:
                     images_idx = [int(re.findall(re_findidx, j)[0])
                                   for j in images_in_folder]
@@ -326,6 +352,7 @@ class Script(scripts.Script):
                                            for j in list(range(int(start), int(end) + 1))]
                         except BaseException:
                             images.append(images_in_folder_dict[int(i)])
+
                 if len(images) == 0:
                     raise FileNotFoundError
 
@@ -336,7 +363,20 @@ class Script(scripts.Script):
                         input_dir,
                         x) for x in os.listdir(input_dir)] if os.path.isfile(file)]
         images = [f for f in images if re.match(r'.+\.(jpg|png)$', f)]
-        images = sorted(images)
+        # images = sorted(images)
+        images = sort_images(images)
+        images_in_folder = sort_images(images_in_folder)
+        start_img = images_in_folder[0]
+        if use_cn_reference:
+            if cn_reference_source == "First":
+                reference_img = [images_in_folder[0] for i in images]
+            elif cn_reference_source == "Previous":
+                img_idx = [images_in_folder.index(i) for i in images]
+                reference_img = [images_in_folder[max(0, i - 1)] for i in img_idx]
+            elif cn_reference_source == "Current":
+                reference_img = images
+            if cn_reference_source != "Current":
+                reference_img = [os.path.join(output_dir, os.path.basename(i)) for i in reference_img]
         print(f'Will process following files: {", ".join(images)}')
 
         if use_txt:
@@ -425,6 +465,11 @@ class Script(scripts.Script):
         else:
             state.job_count *= len(images)
 
+        def set_reference(p, idx, enabled=False):
+            cn_units = external_code.get_all_units_in_processing(p)
+            cn_units[idx].enabled = enabled
+            external_code.update_cn_script_in_processing(p, cn_units)
+
         for idx, path in enumerate(images):
             if state.interrupted:
                 break
@@ -440,6 +485,8 @@ class Script(scripts.Script):
                     to_process = re.findall(re_findname, path)[0]
                 if use_cn or not self.is_img2img:
                     cn_images = [Image.open(cn_in_folder_dict[to_process]) for cn_in_folder_dict in cn_in_folder_dicts]
+                    if use_cn_reference and path != start_img:
+                        cn_images[int(cn_reference_num[-1])] = Image.open(reference_img[idx])
                 if rotate_img != '0':
                     img = img.transpose(rotation_dict[rotate_img])
                     if use_cn:
@@ -516,10 +563,15 @@ class Script(scripts.Script):
 
             if cn_images is not None and (use_cn or not self.is_img2img):
                 p.control_net_input_image = cn_images
+                if use_cn_reference:
+                    if path == start_img and cn_reference_source != 'Current':
+                        set_reference(p, int(cn_reference_num[-1]), False)
+                    else:
+                        set_reference(p, int(cn_reference_num[-1]), True)
 
             if use_cn_inpaint:
                 inpaint_idx = int(cn_inpaint_num[-1])
-                p.control_net_input_image[inpaint_idx] = {"image": p.control_net_input_image[0 if inpaint_idx != 0 else 1], "mask": mask.convert("L")}
+                p.control_net_input_image[inpaint_idx] = {"image": p.control_net_input_image[inpaint_idx], "mask": mask.convert("L")}
 
             def process_images_with_size(p, size, strength):
                 p.width, p.height, = size
